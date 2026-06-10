@@ -59,7 +59,38 @@ Then, the multi-gpu training can be launched with
 ```
 accelerate launch train.py --name <name_of_the_experiment> 
 ```
+### Demo
 
+*Demo implementation by [Mahé DUVAL](https://github.com/MarageDev)*
+![alt text](images/simulditex_demo_preview.png)
+
+<br>
+
+The repository contains a general demo file using the open-source Python package Gradio to render the user interface. The main demo file is located under : `Demos/demo.py`.
+
+The demo includes 4 interactive experiments from the [Jupyter Notebook : experiments.ipynb](experiments.ipynb) : 
+- Spatial Interpolation : blend two textures using a mask painted on the white canvas in real time
+- Stylization : transfer the style of a texture to an uploaded image
+- Interpolate two images : interpolate two images so the first image provides structure (coarse scales) while the second one gives texture (fine scales)
+- Spatial linear interpolation : blend two textures from right to left with a linear gradient
+#### How to run
+To launch the demo, start the python script in the virtual environment :  
+```shell
+python ./Demos/demo.py
+```
+or use gradio hot reload mode (if you plan to edit the code) with 
+```shell
+gradio ./Demos/demo.py
+```
+
+After running one of these two commands, the models will be loaded and a local URL for the demo should appear. Open this URL to access the demos.
+#### Additional information
+To improve the responsiveness of the interface, you can:
+- reduce `Scale factor`
+- reduce `Total time step ratio`
+
+
+For the stylization demo, it is possible to see the different scales with the slider below the `Output` image, from the start of the process to the final result
 ### Inference
 
 All experiments with hyperparameters are replicable in the notebook experiments.ipynb.

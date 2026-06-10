@@ -1311,7 +1311,7 @@ class GaussianDiffusion(Module):
     
 
 
-    def interp_scale(self, size,scales=2,octaves=3,time_ratio=.7, return_all_timesteps = False,noise=None):
+    def interp_scale(self, size,scales=2,octaves=3,time_ratio=.7, total_time_step_ratio = 1.,return_all_timesteps = False,noise=None):
         device, total_timesteps, sampling_timesteps, eta, objective = self.device, self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
         torch.manual_seed(0)
         shape=(1,3,size[0],size[1])
@@ -1322,7 +1322,8 @@ class GaussianDiffusion(Module):
         border_hr=30
         overlap=100
 
-        times = torch.linspace(-1, total_timesteps - 1, steps = total_timesteps + 1)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
+        steps_count = int(total_time_step_ratio*+total_timesteps) + 1
+        times = torch.linspace(-1, total_timesteps - 1, steps = steps_count)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
         times = list(reversed(times.int().tolist()))
         time_pairs = list(zip(times[:-1], times[1:])) # [(T-1, T-2), (T-2, T-3), ..., (1, 0), (0, -1)]
 
@@ -1351,7 +1352,7 @@ class GaussianDiffusion(Module):
                     c * pred_noise + \
                     sigma * noise
                 
-                
+                yield img
 
         times = torch.linspace(-1, int(total_timesteps*(time_ratio)) - 1, steps = sampling_timesteps + 1)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
         times = list(reversed(times.int().tolist()))
@@ -1379,7 +1380,8 @@ class GaussianDiffusion(Module):
             img = img.cpu() * alpha.sqrt() + \
                     c * noise
 
-
+            yield img
+            
             patches,paths=patch_recursive(img,max_area=patch_size**2,overlap=32)
             if len(patches)>1:
                 for i in tqdm(range(len(patches)),desc = 'patches treated, scale %.2f'%scale_factor):
@@ -1417,15 +1419,16 @@ class GaussianDiffusion(Module):
                     img=img[...,(H-h)//2:h+(H-h)//2,(W-w)//2:w+(W-w)//2]
                     patches[i]=img.detach().cpu()
 
+                    yield img
                 img=depatch(patches,paths,overlap=32).to(device)
-
+                
                 if False:
                     for i in tqdm(range(100),desc = 'histogram matching'):
                         img=img+.5*SW2_hist_grad(img,gt_resized)
                     img=img.cpu()
                 
                 #img=depatchify(p_hr,out_shape=shape,patch_size=patch_size,overlap=overlap_curr,border=border_hr_curr)
-
+                yield img
             else: # don't patchify
                 img=img.to(device)
                 for time, time_next in tqdm(time_pairs, desc = 'sampling loop time step'):
@@ -1451,6 +1454,7 @@ class GaussianDiffusion(Module):
                             sigma * noise
                         #img=img+SW2_hist_grad(img,resize(gt.to(img.device),scale_factors=1/scale_factor))
 
+                        yield img
     
 
             
@@ -1462,6 +1466,7 @@ class GaussianDiffusion(Module):
         ret = img if not return_all_timesteps else torch.stack(imgs, dim = 1)
 
         ret = self.unnormalize(ret)
+        yield ret
         return ret
     
 
@@ -1702,7 +1707,7 @@ class GaussianDiffusion(Module):
     
 
     
-    def spatial_interp(self, size,scales=2,octaves=3,time_ratio=.7, return_all_timesteps = False,noise=None,omega=None,patch_size=3000):
+    def spatial_interp(self, size,scales=2,octaves=3,time_ratio=.7, return_all_timesteps = False,noise=None,omega=None,patch_size=3000, total_time_step_ratio = 1.):
         device, total_timesteps, sampling_timesteps, eta, objective = self.device, self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
         #torch.manual_seed(0)
         shape=(1,3,size[0],size[1])
@@ -1714,8 +1719,8 @@ class GaussianDiffusion(Module):
         
         border_hr=30
         overlap=100
-
-        times = torch.linspace(-1, total_timesteps - 1, steps = total_timesteps + 1)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
+        steps_count = int(total_time_step_ratio*+total_timesteps) + 1
+        times = torch.linspace(-1, total_timesteps - 1, steps = steps_count)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
         times = list(reversed(times.int().tolist()))
         time_pairs = list(zip(times[:-1], times[1:])) # [(T-1, T-2), (T-2, T-3), ..., (1, 0), (0, -1)]
 
@@ -1744,7 +1749,7 @@ class GaussianDiffusion(Module):
                     c * pred_noise + \
                     sigma * noise
                 
-                
+                yield img
 
         times = torch.linspace(-1, int(total_timesteps*(time_ratio)) - 1, steps = sampling_timesteps + 1)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
         times = list(reversed(times.int().tolist()))
@@ -1769,7 +1774,8 @@ class GaussianDiffusion(Module):
             c = (1 - alpha - sigma ** 2).sqrt()
             img = img.cpu() * alpha.sqrt() + \
                     c * noise
-
+            
+            yield img
             
             patches,paths=patch_recursive(img,max_area=patch_size**2,overlap=32)
             if len(patches)>1:
@@ -1810,6 +1816,8 @@ class GaussianDiffusion(Module):
                                 c * pred_noise + \
                                 sigma * noise
                             
+                            yield img
+                            
                     img=img[...,(H-h)//2:h+(H-h)//2,(W-w)//2:w+(W-w)//2]
                     patches[i]=img.detach().cpu()
 
@@ -1821,7 +1829,7 @@ class GaussianDiffusion(Module):
                     img=img.cpu()
                 
                 #img=depatchify(p_hr,out_shape=shape,patch_size=patch_size,overlap=overlap_curr,border=border_hr_curr)
-
+                yield img
             else: # don't patchify
                 img=img.to(device)
                 for time, time_next in tqdm(time_pairs, desc = 'sampling loop time step'):
@@ -1848,7 +1856,7 @@ class GaussianDiffusion(Module):
                             sigma * noise
                         #img=img+SW2_hist_grad(img,resize(gt.to(img.device),scale_factors=1/scale_factor))
 
-    
+                        yield img
 
             
 
@@ -1859,6 +1867,7 @@ class GaussianDiffusion(Module):
         ret = img if not return_all_timesteps else torch.stack(imgs, dim = 1)
 
         ret = self.unnormalize(ret)
+        yield ret
         return ret
 
     @torch.inference_mode()
@@ -1958,6 +1967,7 @@ class GaussianDiffusion(Module):
         shape=(1,3,size[0],size[1])
         batch=1
         imgs=[]
+        img_steps = []
         
         scale_factors=[]
         for octave in range(octaves):
@@ -2047,10 +2057,11 @@ class GaussianDiffusion(Module):
                                 c * pred_noise + \
                                 sigma * noise
                             
+                            yield[ img,None]
                     
 
                         img=depatch(patches,paths,overlap=32).to(device)
-
+                        yield [img,None]
 
                         img = img.clone().detach().requires_grad_(True)
                         lr=resize(img,out_shape=(crop_in.shape[-2],crop_in.shape[-1]),interp_method=interp.linear)
@@ -2064,7 +2075,9 @@ class GaussianDiffusion(Module):
 
                     img=img[...,(H-h)//2:h+(H-h)//2,(W-w)//2:w+(W-w)//2]
                     patches[i]=img.detach().cpu()
-
+                    
+                    
+                    yield [img,None]
 
             else: # don't patchify
                 img=img.to(device)
@@ -2099,7 +2112,10 @@ class GaussianDiffusion(Module):
                         #img=img-zeta*gradient/(difference**2).mean().detach()
                         img=img+zeta*gradient#/norm
                         #img=img+SW2_hist_grad(img,resize(gt.to(img.device),scale_factors=1/scale_factor))
-
+                        
+                        
+                        
+                        yield [img,None]
     
 
             
@@ -2107,11 +2123,12 @@ class GaussianDiffusion(Module):
                   
             
             #imgs.append(img.cpu())
-
+            img_steps.append(img)
         ret = img if not return_all_timesteps else torch.stack(imgs, dim = 1)
-
+        
         ret = self.unnormalize(ret)
-        return ret
+        img_steps.append(ret)
+        yield [ret, img_steps]
     
 
 

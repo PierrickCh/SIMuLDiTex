@@ -19,3 +19,4 @@ dependencies:
   - ipykernel
   - ema_pytorch
   - accelerate
+  - gradio
