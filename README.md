@@ -105,7 +105,14 @@ This was built upon the very useful [PyTorch diffusion implementaion](https://gi
 If you use this code for your research, please cite our paper:
 
 ```
-
+@inproceedings{Chatillon_2025_BMVC,
+author    = {Pierrick Chatillon and Julien Rabin and David Tschumperlé},
+title     = {SIMULDITEX: Single Image Multiscale & Lightweight Diffusion for Texture Modelling},
+booktitle = {36th British Machine Vision Conference 2025, {BMVC} 2025, Sheffield, UK, November 24-27, 2025},
+publisher = {BMVA},
+year      = {2025},
+url       = {https://bmva-archive.org.uk/bmvc/2025/assets/papers/Paper_832/paper.pdf}
+}
 ```
 
 
